@@ -5,48 +5,66 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 )
 
-var tmpDir = "/tmp/"
+const tmpDir = "/tmp/"
 
-// IsFileExists 判断文件是否存在
-// 		return: 存在返回: true，不存在返回: false
-func IsFileExists(fileName string) bool {
-	if _, err := os.Stat(fileName); err != nil {
+// Download 接口整理
+type Download interface {
+	// DownloadUrl 下载网络文件
+	DownloadUrl(strURL string, dstFile string) (int64, error)
+}
+
+// isDownloadFile 判断下载的文件是否存在
+func isDownloadFile(fileName string, fileSize int64) bool {
+	info, err := os.Stat(fileName)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return false
 		}
 	}
 
+	if info.Size() != fileSize {
+		os.Remove(fileName)
+		return false
+	}
+
 	return true
 }
 
-// DownloadFile 单个文件下载
-func DownloadFile(dstFileName string, strURL string) (int64, error) {
+// DownloadUrl 单个文件下载
+func DownloadUrl(strURL string, dstFile string) (int64, error) {
 	// 1、创建临时文件
-	_, fileName := filepath.Split(dstFileName)
-	tmpFileName := tmpDir + fileName + ".downloading"
-	file, err := os.OpenFile(tmpFileName, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	_, fileName := filepath.Split(dstFile)
+	tmpFile := tmpDir + fileName + ".downloading"
+	file, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		return 0, err
 	}
 	defer file.Close()
 
 	// 2、发送下载请求
-	rsp, err := http.Get(strURL)
+	client := new(http.Client)
+	client.Timeout = time.Second * 600
+	rsp, err := client.Get(strURL)
 	if err != nil {
 		return 0, err
 	}
 	defer rsp.Body.Close()
 
-	// 3、下载数据写入文件（copy方法使用缓存写入，一次读取大致3M，能规避OOM）
-	length, err := io.Copy(file, rsp.Body)
-	if err != nil {
-		return length, err
+	// 3、判断是否已下载，未下载则下载到临时文件
+	fileSize, _ := strconv.ParseInt(rsp.Header.Get("Content-Length"), 10, 32)
+	if !isDownloadFile(tmpFile, fileSize) {
+		// copy方法使用缓存写入，一次读取大致3M，能规避OOM
+		if _, err := io.Copy(file, rsp.Body); err != nil {
+			return 0, err
+		}
 	}
 
 	// 4、移动临时文件到目标文件处
-	os.Rename(tmpFileName, dstFileName)
+	os.Rename(tmpFile, dstFile)
 
-	return length, err
+	return fileSize, nil
 }
