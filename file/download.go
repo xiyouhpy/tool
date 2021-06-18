@@ -36,16 +36,7 @@ func isDownloadFile(fileName string, fileSize int64) bool {
 
 // DownloadUrl 单个文件下载
 func DownloadUrl(strURL string, dstFile string) (int64, error) {
-	// 1、创建临时文件
-	_, fileName := filepath.Split(dstFile)
-	tmpFile := tmpDir + fileName + ".downloading"
-	file, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	// 2、发送下载请求
+	// 1、发送下载请求，获取下载对象
 	client := new(http.Client)
 	client.Timeout = time.Second * 600
 	rsp, err := client.Get(strURL)
@@ -54,16 +45,23 @@ func DownloadUrl(strURL string, dstFile string) (int64, error) {
 	}
 	defer rsp.Body.Close()
 
-	// 3、判断是否已下载，未下载则下载到临时文件
+	// 2、判断是否已下载，未下载则下载到临时文件
+	tmpFile := tmpDir + filepath.Base(dstFile) + ".downloading"
 	fileSize, _ := strconv.ParseInt(rsp.Header.Get("Content-Length"), 10, 32)
 	if !isDownloadFile(tmpFile, fileSize) {
+		file, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+		if err != nil {
+			return 0, err
+		}
+		defer file.Close()
+
 		// copy方法使用缓存写入，一次读取大致3M，能规避OOM
 		if _, err := io.Copy(file, rsp.Body); err != nil {
 			return 0, err
 		}
 	}
 
-	// 4、移动临时文件到目标文件处
+	// 3、移动临时文件到目标文件处
 	os.Rename(tmpFile, dstFile)
 
 	return fileSize, nil
