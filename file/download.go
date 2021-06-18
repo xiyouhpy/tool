@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 var tmpDir = "/tmp/"
@@ -22,28 +23,30 @@ func IsFileExists(fileName string) bool {
 
 // DownloadFile 单个文件下载
 func DownloadFile(dstFileName string, strURL string) (int64, error) {
-	// 1、创建下载文件
-	file, err := os.OpenFile(dstFileName, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	// 1、创建临时文件
+	_, fileName := filepath.Split(dstFileName)
+	tmpFileName := tmpDir + fileName + ".downloading"
+	file, err := os.OpenFile(tmpFileName, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		return 0, err
 	}
 	defer file.Close()
 
-	// 2、发送网络请求下载文件
+	// 2、发送下载请求
 	rsp, err := http.Get(strURL)
 	if err != nil {
 		return 0, err
 	}
 	defer rsp.Body.Close()
 
-	// 3、将网络请求拉取的数据写入到文件中（copy方法使用缓存写入，一次读取大致3M，能规避OOM）
+	// 3、下载数据写入文件（copy方法使用缓存写入，一次读取大致3M，能规避OOM）
 	length, err := io.Copy(file, rsp.Body)
 	if err != nil {
 		return length, err
 	}
 
-	// 4、获取当前执行路径，拼接保存的目标文件绝对路径
-	os.Rename(tmpDir+dstFileName+".download", dstFileName)
+	// 4、移动临时文件到目标文件处
+	os.Rename(tmpFileName, dstFileName)
 
 	return length, err
 }
