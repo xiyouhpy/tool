@@ -7,7 +7,6 @@ import (
 )
 
 var tmpDir = "/tmp/"
-var dstDir = "/data/"
 
 // IsFileExists 判断文件是否存在
 // 		return: 存在返回: true，不存在返回: false
@@ -44,7 +43,7 @@ func DownloadFile(dstFileName string, strURL string) (int64, error) {
 	}
 
 	// 4、获取当前执行路径，拼接保存的目标文件绝对路径
-	os.Rename(tmpDir+dstFileName+".download", dstDir+dstFileName)
+	os.Rename(tmpDir+dstFileName+".download", dstFileName)
 
 	return length, err
 }
