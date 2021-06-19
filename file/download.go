@@ -49,7 +49,7 @@ func DownloadUrl(strURL string, dstFile string) (int64, error) {
 	tmpFile := tmpDir + filepath.Base(dstFile) + ".downloading"
 	fileSize, _ := strconv.ParseInt(rsp.Header.Get("Content-Length"), 10, 32)
 	if !isDownloadFile(tmpFile, fileSize) {
-		file, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+		file, err := os.Create(tmpFile)
 		if err != nil {
 			return 0, err
 		}
@@ -62,7 +62,9 @@ func DownloadUrl(strURL string, dstFile string) (int64, error) {
 	}
 
 	// 3、移动临时文件到目标文件处
-	os.Rename(tmpFile, dstFile)
+	if err = os.Rename(tmpFile, dstFile); err != nil {
+		return 0, nil
+	}
 
 	return fileSize, nil
 }
