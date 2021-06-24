@@ -8,13 +8,13 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Request 对象结构体
-type Request struct {
+// RateLimit 对象结构体
+type RateLimit struct {
 	*rate.Limiter
 }
 
 // NewLimiter 初始化令牌信息；bucketSize 表示每秒产生令牌的个数，也即是每秒接收多少个请求
-func NewLimiter(bucketSize int) (*Request, error) {
+func NewLimiter(bucketSize int) (*RateLimit, error) {
 	if bucketSize <= 0 {
 		return nil, errors.New("param error")
 	}
@@ -32,17 +32,17 @@ func NewLimiter(bucketSize int) (*Request, error) {
 	// limiter.SetBurst(bucketSize)
 	// limiter.SetLimit(10)
 
-	return &Request{limiter}, nil
+	return &RateLimit{limiter}, nil
 }
 
 // IsRequestPass 令牌桶限流请求是否放行，参数表示获取令牌等待超时时间，单位：ms
-func (req *Request) IsRequestPass(timeOut time.Duration) bool {
+func (rate *RateLimit) IsRequestPass(timeOut time.Duration) bool {
 	// 设置该执行逻辑的 context 超时时间
 	ctx, cancel := context.WithTimeout(context.Background(), timeOut*time.Millisecond)
 	defer cancel()
 
 	// 等待令牌
-	if err := req.Wait(ctx); err != nil {
+	if err := rate.Wait(ctx); err != nil {
 		return false
 	}
 	return true
