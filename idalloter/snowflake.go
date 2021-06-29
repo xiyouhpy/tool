@@ -14,14 +14,15 @@ import (
 	"time"
 )
 
-// maxSequenceID 为序列号，占 12 bit，最大值为 2^12-1
-const maxSequenceID = 1<<12 - 1
+const (
+	lastStampBit = 41 // 上一次时间戳占用 bit
+	sequenceBit  = 12 // 序列号占用 bit
+	machineBit   = 10 // 机器识别号占用 bit
 
-// maxMachineID 为机器标识号，占 10 bit，最大值为 2^10-1
-const maxMachineID = 1<<10 - 1
-
-// startStamp 开始时间戳，示例为：2021-06-01 00:00:00 000
-const startStamp uint64 = 1622476800000
+	maxSequenceID        = 1<<sequenceBit - 1 // 序列号，12 bit，最大值为 2^12-1
+	maxMachineID         = 1<<machineBit - 1  // 机器标识号，10 bit，最大值为 2^10-1
+	startStamp    uint64 = 1622476800000      // 开始时间戳，2021-06-01 00:00:00 000
+)
 
 // SnowFlake 雪花算法结构体，64字节长度的 id 共由三部分组成
 //           lastStamp     42bit    上一次时间戳，单位毫秒
@@ -67,10 +68,7 @@ func getStamp() uint64 {
 
 // getId 根据记录的结构，得到唯一id
 func (sf *SnowFlake) getId() uint64 {
-	// 时间戳在高位，先将 lastStamp 向左移动 10 + 12 个bit，预留出 machineID 和 sequenceID 的位置
-	// 再将 machineID 向左移动 10 个bit，为 sequenceID 预留这 10 个bit
-	// 最后将 sequenceID 填补到这 10 个bit
-	return sf.lastStamp<<(10+12) | uint64(sf.machineID)<<10 | uint64(sf.sequenceID)
+	return sf.lastStamp<<(machineBit+sequenceBit) | uint64(sf.machineID)<<machineBit | uint64(sf.sequenceID)
 }
 
 // GenerateID 获取唯一id
