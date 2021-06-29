@@ -1,7 +1,7 @@
 // Package idalloter 雪花算法
-// +----------------------------------------------------------+
-// | 42Bit lastTimestamp | 10Bit sequenceID | 12Bit machineID |
-// +----------------------------------------------------------+
+// +----------------------------------------------------------------------+
+// | 1 bit ｜ 41 Bit lastTimestamp | 10 Bit machineID | 12 Bit sequenceID |
+// +----------------------------------------------------------------------+
 package idalloter
 
 import (
@@ -10,16 +10,16 @@ import (
 	"time"
 )
 
-// maxSequenceID 为同一毫秒内产生的 id 分配 12 位大小区间，最大值为 2^12-1
+// maxSequenceID 为序列号，占 12 bit，最大值为 2^12-1
 const maxSequenceID = 1<<12 - 1
 
-// maxMachineID 为机器编号分配 10 位大小区间，最大值为 2^10-1
+// maxMachineID 为机器标识号，占 10 bit，最大值为 2^10-1
 const maxMachineID = 1<<10 - 1
 
 // SnowFlake 雪花算法结构体，64字节长度的 id 共由三部分组成
-// 			 lastTimestamp 42bit    记录最近一次的时间戳，单位粒度毫秒
-// 		     sequenceID    12bit	记录同一毫秒内区分的序列号，解决同一毫秒请求的碰撞问题
-// 			 machineID     10bit	记录机器id，支持分布式
+//           lastTimestamp 42bit    上一次时间戳，单位毫秒
+//           sequenceID    12bit    序列号，使同一毫秒内不出现重复
+//           machineID     10bit    机器标识id，使分布式系统内不同机器间不出现重复
 type SnowFlake struct {
 	lastTimestamp uint64
 	sequenceID    uint32
@@ -38,14 +38,14 @@ type SnowFlakeInterface interface {
 // NewSnowFlake 获取 id 分配器对象
 func NewSnowFlake(machineId uint32) (*SnowFlake, error) {
 	if machineId < 0 || machineId > maxMachineID {
-		return nil, errors.New("invalid machine id")
+		return nil, errors.New("invalid machineId")
 	}
 
 	return &SnowFlake{machineID: machineId}, nil
 }
 
-// nextMillisecond 获取下一个毫秒的时间戳
-func (sf *SnowFlake) nextMillisecond(ntime uint64) uint64 {
+// getNextMillisecond 获取下一个毫秒的时间戳
+func (sf *SnowFlake) getNextMillisecond(ntime uint64) uint64 {
 	for ntime == sf.lastTimestamp {
 		time.Sleep(time.Microsecond * 100)
 	}
@@ -60,10 +60,10 @@ func getTimestamp() uint64 {
 
 // getId 根据记录的结构，得到唯一id
 func (sf *SnowFlake) getId() uint64 {
-	// 时间戳为高位，先将 lastTimestamp 向左移动 12 + 10 个bit，预留出 sequenceID 和 machineID 的位置
-	// 再将 sequenceID 向左移动 10 个bit，为 machineID 预留这 10 个bit
-	// 最后将 machineID 填补到这 10 个bit
-	return sf.lastTimestamp<<(12+10) | uint64(sf.sequenceID)<<10 | uint64(sf.machineID)
+	// 时间戳在高位，先将 lastTimestamp 向左移动 10 + 12 个bit，预留出 machineID 和 sequenceID 的位置
+	// 再将 machineID 向左移动 10 个bit，为 sequenceID 预留这 10 个bit
+	// 最后将 sequenceID 填补到这 10 个bit
+	return sf.lastTimestamp<<(10+12) | uint64(sf.machineID)<<10 | uint64(sf.sequenceID)
 }
 
 // GenerateID 获取唯一id
@@ -81,7 +81,7 @@ func (sf *SnowFlake) GenerateID() (uint64, error) {
 	if nowTime == sf.lastTimestamp {
 		sf.sequenceID = (sf.sequenceID + 1) & maxSequenceID
 		if sf.sequenceID == 0 {
-			nowTime = sf.nextMillisecond(nowTime)
+			nowTime = sf.getNextMillisecond(nowTime)
 		}
 	} else {
 		sf.sequenceID = 0
