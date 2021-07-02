@@ -12,7 +12,7 @@ import (
 // RedisInterface 接口整理
 type RedisInterface interface {
 	// NewRedis 获取 redis 对象
-	NewRedis() (*RedisCli, error)
+	NewRedis(redisCluster string, configPath string) (*RedisCli, error)
 	// Set redis set 方法
 	Set(key string, value string) bool
 	// SetEX redis setEX 方法
@@ -29,33 +29,30 @@ type RedisInterface interface {
 	Exists(key string) bool
 }
 
+// redisCli redis 对象全局变量
+var redisCli *RedisCli
+
 // RedisCli redis 对象结构
 type RedisCli struct {
 	client redis.Conn
 }
 
-// redisCli redis 对象全局变量
-var redisCli *RedisCli
-
-// confPath redis 配置文件路径
-const confPath = "test"
-
-// confInfo redis 配置文件结构
-type confInfo struct {
+// redisConfig redis 配置文件结构
+type redisConfig struct {
 	host   string
 	port   string
 	passwd string
 }
 
 // getConf 获取 redis 配置信息
-func getConf(configPath string) map[string]confInfo {
+func getConf(configPath string) map[string]redisConfig {
 	yamlInfo, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		logrus.Warnf("ioutil.ReadFile err, path:%s, err:%s", configPath, err.Error())
 		return nil
 	}
 
-	config := make(map[string]confInfo)
+	config := make(map[string]redisConfig)
 	err = yaml.Unmarshal(yamlInfo, config)
 	if err != nil {
 		logrus.Warnf("yaml.Unmarshal err, path:%s, err:%s", configPath, err.Error())
@@ -73,7 +70,7 @@ func getRedis(redisCluster string, configPath string) (*RedisCli, error) {
 		logrus.Warnf("getConf err, conf:%v", config)
 		return nil, errors.New("get host/port empty")
 	}
-	redisClusterConf := confInfo{
+	redisClusterConf := redisConfig{
 		host:   config[redisCluster].host,
 		port:   config[redisCluster].port,
 		passwd: config[redisCluster].passwd,
