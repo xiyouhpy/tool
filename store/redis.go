@@ -2,17 +2,15 @@ package store
 
 import (
 	"errors"
-	"io/ioutil"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 // RedisInterface 接口整理
 type RedisInterface interface {
 	// NewRedis 获取 redis 对象
-	NewRedis(redisCluster string, configPath string) (*RedisCli, error)
+	NewRedis(host string, port string, passwd string) (*RedisCli, error)
 	// Set redis set 方法
 	Set(key string, value string) bool
 	// SetEX redis setEX 方法
@@ -29,9 +27,6 @@ type RedisInterface interface {
 	Exists(key string) bool
 }
 
-// redisCli redis 对象全局变量
-var redisCli *RedisCli
-
 // RedisCli redis 对象结构
 type RedisCli struct {
 	client redis.Conn
@@ -44,54 +39,37 @@ type redisConfig struct {
 	passwd string
 }
 
-// getConf 获取 redis 配置信息
-func getConf(configPath string) map[string]redisConfig {
-	yamlInfo, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		logrus.Warnf("ioutil.ReadFile err, path:%s, err:%s", configPath, err.Error())
-		return nil
-	}
-
-	config := make(map[string]redisConfig)
-	err = yaml.Unmarshal(yamlInfo, config)
-	if err != nil {
-		logrus.Warnf("yaml.Unmarshal err, path:%s, err:%s", configPath, err.Error())
-		return nil
-	}
-
-	return config
-}
+// 全局变量定义
+var (
+	// redisCli redis 对象
+	redisCli *RedisCli
+	// redisConf redis 配置信息
+	redisConf redisConfig
+)
 
 // getRedis 初始化 redis
-func getRedis(redisCluster string, configPath string) (*RedisCli, error) {
+func getRedis() (*RedisCli, error) {
 	// redis 配置获取
-	config := getConf(configPath)
-	if config[redisCluster].host == "" || config[redisCluster].port == "" {
-		logrus.Warnf("getConf err, conf:%v", config)
-		return nil, errors.New("get host/port empty")
-	}
-	redisClusterConf := redisConfig{
-		host:   config[redisCluster].host,
-		port:   config[redisCluster].port,
-		passwd: config[redisCluster].passwd,
+	if redisConf.host == "" || redisConf.port == "" {
+		return nil, errors.New("ip/port is empty")
 	}
 
 	// redis 服务连接
-	client, err := redis.Dial("tcp", redisClusterConf.host+":"+redisClusterConf.port)
+	client, err := redis.Dial("tcp", redisConf.host+":"+redisConf.port)
 	if err != nil {
 		logrus.Warnf("redis.Dial err, err:%s", err.Error())
 		return nil, err
 	}
 
 	// redis 密码鉴权
-	if redisClusterConf.passwd != "" {
-		if _, err = client.Do("auth", redisClusterConf.passwd); err != nil {
+	if redisConf.passwd != "" {
+		if _, err = client.Do("auth", redisConf.passwd); err != nil {
 			logrus.Warnf("redis.Do auth err, err:%s", err.Error())
 			return nil, err
 		}
-		logrus.Infof("auth ok!, %s:%s", redisClusterConf.host, redisClusterConf.port)
+		logrus.Infof("auth ok!, %s:%s", redisConf.host, redisConf.port)
 	}
-	logrus.Infof("connect to redis, %s:%s", redisClusterConf.host, redisClusterConf.port)
+	logrus.Infof("connect to redis, %s:%s", redisConf.host, redisConf.port)
 
 	// 赋值 redis 对象全局变量
 	redisCli = &RedisCli{client: client}
@@ -100,12 +78,19 @@ func getRedis(redisCluster string, configPath string) (*RedisCli, error) {
 }
 
 // NewRedis 获取 redis 对象
-func NewRedis(redisCluster string, configPath string) (*RedisCli, error) {
-	if redisCli != nil {
-		return redisCli, nil
+func NewRedis(host string, port string, passwd string) (*RedisCli, error) {
+	if host == "" || port == "" {
+		logrus.Warnf("NewRedis params err")
+		return nil, errors.New("params err")
 	}
 
-	return getRedis(redisCluster, configPath)
+	redisConf = redisConfig{
+		host:   host,
+		port:   port,
+		passwd: passwd,
+	}
+
+	return getRedis()
 }
 
 // Set redis set 方法
