@@ -65,6 +65,7 @@ func getRedis() (*RedisCli, error) {
 	if redisConf.passwd != "" {
 		if _, err = client.Do("auth", redisConf.passwd); err != nil {
 			logrus.Warnf("redis.Do auth err, err:%s", err.Error())
+			client.Close()
 			return nil, err
 		}
 		logrus.Infof("auth ok!, %s:%s", redisConf.host, redisConf.port)
@@ -116,7 +117,7 @@ func (conn *RedisCli) SetEX(key string, value string, seconds int) bool {
 		return false
 	}
 
-	_, err := conn.client.Do("SET", key, value, "EX", string(seconds))
+	_, err := conn.client.Do("SETEX", key, seconds, value)
 	if err != nil {
 		logrus.Warnf("redis.Do SETEX err, err:%s", err.Error())
 		return false
@@ -133,8 +134,12 @@ func (conn *RedisCli) SetNX(key string, value string) bool {
 	}
 
 	ret, err := conn.client.Do("SETNX", key, value)
-	if ret != int64(1) || err != nil {
+	if err != nil {
 		logrus.Warnf("redis.Do SETNX err, ret:%d, err:%s", ret, err.Error())
+		return false
+	}
+	if ret != int64(1) {
+		logrus.Infof("redis.Do SETNX succ, ret:%d", ret)
 		return false
 	}
 
