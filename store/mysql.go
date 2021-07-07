@@ -29,7 +29,7 @@ var (
 	mysqlCli *MysqlCli
 )
 
-// getMysql 初始化 mysql
+// getMysql 初始化 mysql，使用 utf-8 编码
 func getMysql(mysqlConf mysqlConfig) (*MysqlCli, error) {
 	// mysql 配置获取
 	if mysqlConf.host == "" || mysqlConf.port == "" || mysqlConf.user == "" || mysqlConf.passwd == "" {
@@ -38,7 +38,7 @@ func getMysql(mysqlConf mysqlConfig) (*MysqlCli, error) {
 
 	// mysql 服务连接
 	dbServer := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s",
+		"%s:%s@tcp(%s:%s)/%s?charset=utf8",
 		mysqlConf.user, mysqlConf.passwd, mysqlConf.host, mysqlConf.port, mysqlConf.dbname)
 	client, err := sql.Open("mysql", dbServer)
 	if err != nil {
