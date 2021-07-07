@@ -11,20 +11,22 @@ import (
 type RedisInterface interface {
 	// NewRedis 获取 redis 对象
 	NewRedis(host string, port string, passwd string) (*RedisCli, error)
-	// Set redis set 方法
-	Set(key string, value string) bool
-	// SetEX redis setEX 方法
-	SetEX(key string, value string, seconds int) bool
-	// SetNX redis setNX 方法 <该方法只有在key不存在的时候才会设置成功>
-	SetNX(key string, value string) bool
-	// Get redis get 方法
-	Get(key string) (string, error)
+
 	// Del redis del 方法
 	Del(key string) bool
 	// Expire redis expire 方法
 	Expire(key string, seconds int) bool
 	// Exists redis exists 方法
 	Exists(key string) bool
+
+	// Get redis get 方法
+	Get(key string) (string, error)
+	// Set redis set 方法
+	Set(key string, value string) bool
+	// SetEX redis setEX 方法
+	SetEX(key string, value string, seconds int) bool
+	// SetNX redis setNX 方法 <该方法只有在key不存在的时候才会设置成功>
+	SetNX(key string, value string) bool
 }
 
 // RedisCli redis 对象结构
@@ -43,12 +45,10 @@ type redisConfig struct {
 var (
 	// redisCli redis 对象
 	redisCli *RedisCli
-	// redisConf redis 配置信息
-	redisConf redisConfig
 )
 
 // getRedis 初始化 redis
-func getRedis() (*RedisCli, error) {
+func getRedis(redisConf redisConfig) (*RedisCli, error) {
 	// redis 配置获取
 	if redisConf.host == "" || redisConf.port == "" {
 		return nil, errors.New("ip/port is empty")
@@ -85,13 +85,12 @@ func NewRedis(host string, port string, passwd string) (*RedisCli, error) {
 		return nil, errors.New("params err")
 	}
 
-	redisConf = redisConfig{
+	redisConf := redisConfig{
 		host:   host,
 		port:   port,
 		passwd: passwd,
 	}
-
-	return getRedis()
+	return getRedis(redisConf)
 }
 
 // Set redis set 方法
