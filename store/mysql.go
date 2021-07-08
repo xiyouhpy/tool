@@ -216,11 +216,11 @@ func (conn *MysqlCli) Delete(strSql string, args ...interface{}) (int64, error) 
 		return 0, err
 	}
 
-	updateNum, err := res.RowsAffected()
+	deleteNum, err := res.RowsAffected()
 	if err != nil {
 		logrus.Warnf("Delete RowsAffected err, sql:%s", strSql)
 		return 0, err
 	}
 
-	return updateNum, nil
+	return deleteNum, nil
 }
