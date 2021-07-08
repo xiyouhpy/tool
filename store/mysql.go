@@ -14,7 +14,7 @@ type MysqlInterface interface {
 	// NewMysql 获取 mysql 对象
 	NewMysql(host string, port string, user string, passwd string, dbname string) (*MysqlCli, error)
 
-	// Select mysql select 方法
+	// Select mysql select 方法，select 操作比较特殊，需要拿到拼接完整的 sql 作为入参
 	Select(strSql string) ([]interface{}, error)
 	// Insert mysql insert 操作
 	Insert(strSql string, args ...interface{}) (int64, error)
@@ -89,7 +89,7 @@ func NewMysql(host string, port string, user string, passwd string, dbname strin
 	return getMysql(mysqlConf)
 }
 
-// Select mysql select 操作
+// Select mysql select 操作，select 操作比较特殊，需要拿到拼接完整的 sql 作为入参
 func (conn *MysqlCli) Select(strSql string) ([]interface{}, error) {
 	if strSql == "" {
 		logrus.Warnf("Select params sql err")
