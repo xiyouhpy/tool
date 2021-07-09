@@ -18,6 +18,8 @@ type RedisInterface interface {
 	Expire(key string, seconds int) bool
 	// Exists redis exists 方法
 	Exists(key string) bool
+	// TTL redis exists 方法
+	TTL(key string) bool
 
 	// Get redis get 方法
 	Get(key string) (string, error)
@@ -207,4 +209,20 @@ func (conn *RedisCli) Exists(key string) bool {
 	}
 
 	return isExists
+}
+
+// TTL redis ttl 方法
+func (conn *RedisCli) TTL(key string) (int64, error) {
+	if key == "" {
+		logrus.Warnf("params error, key:%s", key)
+		return -1, errors.New("params error, key:" + key)
+	}
+
+	intTime, err := redis.Int64(conn.client.Do("TTL", key))
+	if err != nil {
+		logrus.Warnf("redis.Do TTL err, err:%s", err.Error())
+		return -1, err
+	}
+
+	return intTime, nil
 }
